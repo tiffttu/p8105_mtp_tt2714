@@ -9,6 +9,11 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
 library(rvest)
+library(ggplot2)
+library(RColorBrewer)
+library(wesanderson)
+library(ggrepel)
+library(kableExtra)
 ```
 
 ```{r}
@@ -23,12 +28,26 @@ clean_data = data %>%
   spread(temp, value) %>% 
   select(week, activity = variable, Monday, Tuesday, Wednesday, 
          Thursday, Friday, Saturday, Sunday) %>% 
-  mutate(activity = str_replace(activity, "activity\\.", "")) %>% 
-  ungroup() %>% 
-  mutate(week = as.factor(week), activity = as.numeric(as.character(activity))) %>% 
-  mutate(order(week, activity))
+  mutate(activity = str_replace(activity, "activity\\.", ""))
+kable(head(clean_data))
 ```
 
 This dataset observes `r length(unique(clean_data$week))` weeks of recorded physical activity. 
 
+--------------------------------------------
+
+1. week vs activity and hour vs activity (mean)
+```{r}
+total_activity_day = clean_data %>% 
+  group_by(week) %>% 
+  select(-activity) %>% 
+  summarise_all(funs(sum)) %>% 
+  gather('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', key = "day", value = "activity") %>% 
+  mutate(day = forcats::fct_relevel(day, c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'))) 
+
+activity_by_day = total_activity_day %>%
+  group_by(day) %>% summarise_at(vars(activity), mean) %>% mutate(activity, activity = round(activity))
+
+ggplot(activity_by_day, aes(x = day, y = activity, group = 1, color = "red")) + geom_point() + geom_line() + geom_text_repel(aes(label = activity), size = 2.8, color = "black") + theme_bw() + labs(title = "Average activity in a week", x = "Day of Week", y = "Activity (per Minute)") + theme(legend.position = "none")
+```
 
