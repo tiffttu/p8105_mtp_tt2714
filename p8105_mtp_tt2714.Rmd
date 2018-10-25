@@ -15,61 +15,76 @@ library(kableExtra)
 library(gridExtra)
 ```
 
-```{r}
+```{r message=FALSE}
 data = read_csv(file = "data/p8105_mtp_data.csv") 
-
 clean_data = data %>% 
   gather(variable, value, -(week:day)) %>% 
-  unite(temp, day) %>% 
-  spread(temp, value) %>% 
-  select(week, activity = variable, Monday, Tuesday, Wednesday, 
-         Thursday, Friday, Saturday, Sunday) %>% 
-  mutate(activity = str_replace(activity, "activity\\.", "")) %>% 
-  rename(time = activity)
-kable(head(clean_data))
+  unite(temp, day) %>% rename(day = temp, time = variable, activity = value) %>% 
+  mutate(time = str_replace(time, "activity\\.", "")) %>% 
+  mutate(time = as.numeric(time), week = as.factor(week), 
+         day = forcats::fct_relevel(day, c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'))) 
 ```
 
 This dataset observes `r length(unique(clean_data$week))` weeks of recorded physical activity. 
-
 --------------------------------------------
 
-1. week vs activity and hour vs activity (mean)
-```{r}
-total_activity_day = clean_data %>% 
-  group_by(week) %>% 
-  select(-time) %>% 
-  summarise_all(funs(sum)) %>% 
-  gather('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', key = "day", value = "activity") %>% 
-  mutate(day = forcats::fct_relevel(day, c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'))) 
+```{r activity distribution -day}
+activity_day = clean_data %>% 
+  group_by(week, day) %>% select(-time) %>% 
+  summarise_all(funs(sum)) 
 
-activity_by_day = total_activity_day %>%
-  group_by(day) %>% summarise_at(vars(activity), mean) %>% mutate(activity, activity = round(activity))
-
-ggplot(activity_by_day, aes(x = day, y = activity, group = 1, color = "red")) + geom_point() + geom_line() + geom_text_repel(aes(label = activity), size = 2.8, color = "black") + theme_bw() + labs(title = "Average activity per day", x = "Day of Week", y = "Activity (per Minute)") + theme(legend.position = "none")
+dist_dayplot = ggplot(activity_day, aes(x = day, y = activity)) + 
+  geom_violin(adjust = 0.8, aes(fill = day)) + geom_boxplot(width = 0.1) + 
+  labs(title = "Activity distribution on each day", x = "day of the week", y = "Activity (per Minute)") +
+  theme_bw() + scale_y_continuous(labels = scales::comma)
 ```
 
-```{r minutes vs activity}
-activity_by_hour = clean_data %>% 
-  group_by(time) %>% 
-  select(-week) %>%
-  summarise_all(funs(sum)) %>% 
-  gather('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', key = "day", value = "activity") %>% 
-  mutate(day = forcats::fct_relevel(day, c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'))) %>% 
-  mutate(time = as.integer(as.character(time)))
+```{r activity distribution - time}
+time_formatter <- function(x) {h <- floor(x/60)}
+activity_time = clean_data %>% 
+  group_by(time, day) %>% select(-week) %>%
+  summarise_all(funs(sum)) 
 
-timeHMS_formatter <- function(x) {h <- floor(x/60)}
-
-g1 = ggplot(activity_by_hour, aes(x = time, y = activity, color = day)) + geom_smooth(method = "auto") + scale_x_continuous(label = timeHMS_formatter, breaks = seq(1, 1440, by = 64)) + labs(title = "Activity distribution over 24 hour period", x = "Hour of the day", y = "Activity (per Minute)") + theme_bw()
+dist_timeplot = ggplot(activity_time, aes(x = time, y = activity, color = day)) + 
+  geom_smooth(method = "auto") + 
+  scale_x_continuous(label = time_formatter, breaks = seq(1, 1440, by = 64)) + 
+  labs(title = "Activity distribution over 24 hour period", x = "Hour of the day", 
+       y = "Activity (per Minute)") + theme_bw()
 ```
 
-```{r violin plot for each day}
-g2 = ggplot(total_activity_day, aes(x = day, y = activity)) + geom_violin(adjust = 0.8, aes(fill = day))  + geom_boxplot(width = 0.1) + labs(title = "Activity distribution on each day", x = "day of the week", y = "Activity (per Minute)") + theme_bw() + scale_y_continuous(labels = scales::comma)
+```{r message=FALSE}
+grid.arrange(dist_timeplot, dist_dayplot)
 ```
 
-```{r combine 2 plots}
-grid.arrange(g1, g2)
+```{r average activity per week (1-47)}
+ggplot(clean_data %>% group_by(week) %>% select(-time, -day) %>% summarise_all(funs(sum)),
+       aes(x = week, y = activity, group = 1, color = "red")) + 
+  geom_point() + geom_line() + theme_bw() + scale_x_discrete(breaks = seq(1, 47, by = 4)) +
+  scale_y_continuous(breaks = seq(0, 5000000, by = 500000)) + 
+  labs(title = "Average activity per week", x = "Week", y = "Activity (per Minute)") +
+  theme(legend.position = "none")
 ```
 
+```{r week - activity over days}
+week_analysis = clean_data %>% 
+  filter(week == 1 | week == 15 | week == 30 | week == 47) 
 
+week_plot1 = ggplot(week_analysis %>% select(-time) %>% 
+  group_by(day, week) %>% summarise_all(funs(sum)), 
+  aes(x = day, y = activity, group = week, color = week)) + 
+  geom_point() + geom_line() + theme_bw() + 
+  labs(title = "Average activity per day", x = "Day of the week", y = "Activity (per Minute)") 
+```
 
+```{r week - distribution of activity over time}
+week_plot2 = ggplot(week_analysis %>% select(-day) %>% 
+  group_by(time, week) %>% summarise_all(funs(sum)), 
+  aes(x = time, y = activity, group = week, color = week)) + geom_smooth(method = "auto") + theme_bw() +
+  labs(title = "Week distribution of activity", x = "Time (hours)", y = "Activity (per Minute)") + 
+  scale_x_continuous(label = time_formatter, breaks = seq(1, 1440, by = 64))
+```
+
+```{r message=FALSE}
+grid.arrange(week_plot1, week_plot2)
+```
 
