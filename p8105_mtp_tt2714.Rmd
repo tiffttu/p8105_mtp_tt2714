@@ -110,4 +110,4 @@ We are unable to extract much information from the simple average activity per w
 Activity distribution over days of the week show more activity in week 47 for Tuesday and Sundays. Week 15 and 30 also appear as the largest activity count when compared to other weeks for a given day. Week 1 remains under the maximum average activity count for all days of the week.  
    
 ### Results
-After 47 weeks, the individual improved his activity level by approximately 28000 counts. It is difficult to access whether activity level improved for all days of the week by the end of week 47. It may be helpful to study the cumulative distribution at different time points. 
+After 47 weeks, the individual improved his overall activity level by approximately 28000 counts. It is difficult to access whether activity level improved for all days of the week by the end of week 47. It may be helpful to study the cumulative distribution at different time points. 
