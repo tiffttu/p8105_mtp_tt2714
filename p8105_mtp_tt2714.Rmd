@@ -14,6 +14,7 @@ library(ggrepel)
 library(kableExtra)
 library(gridExtra)
 options(scipen=999)
+library(ggpmisc)
 ```
 
 ### Initial data cleaning and exploring...
@@ -29,7 +30,7 @@ clean_data = data %>%
 
 This dataset observes physical activity by minutes through a 24-hour period for `r length(unique(clean_data$week))` weeks. After cleaning the dataset, we have `r ncol(clean_data)` variables: `r colnames(clean_data)`, for `r nrow(clean_data)` observations. We have activity counts for each time point in minutes and we want to explore whether the individual became more active over time. The average activity count for the whole duration of the study is approximately `r round(mean(clean_data$activity))`. The maximum activity count occured on a `r clean_data  %>% slice(which.max(activity)) %>% {.[1,2]}` at hour `r clean_data  %>% slice(which.max(activity)) %>% {.[1,3]/60} %>% round()`.
 
-### Activity distribution across time and week
+### Activity profile across time and week
 ```{r activity distribution -day}
 activity_day = clean_data %>% 
   group_by(week, day) %>% select(-time) %>% 
@@ -55,8 +56,7 @@ dist_timeplot = ggplot(activity_time, aes(x = time, y = activity, color = day)) 
 ```
 
 ```{r message=FALSE}
-grid.arrange(dist_timeplot, dist_dayplot, top = "Activity Distribution Over 47 Weeks", 
-             left = "Activity Count (per Minute)")
+grid.arrange(dist_timeplot, dist_dayplot, top = "Activity Profile Over 47 Weeks", left = "Activity Count (per Minute)")
 ```
 
 
@@ -70,12 +70,15 @@ ggplot(clean_data %>% group_by(week) %>% select(-time, -day) %>% summarise_all(f
        aes(x = week, y = activity, group = 1, color = "red")) + 
   geom_point() + geom_line() + scale_x_discrete(breaks = seq(1, 47, by = 4)) +
   scale_y_continuous(breaks = seq(0, 5000000, by = 500000)) + 
-  labs(title = "Average Activity per week", x = "Week", y = "Activity Count (per Minute)") +
-  theme_bw() + theme(legend.position = "none") + 
-  geom_smooth(method = "lm", se = FALSE, color = "navyblue", size = 0.5, linetype = 2)
+  labs(title = "Average Activity per week", x = "Week", 
+       y = "Activity Count (per Minute)") + 
+  geom_smooth(method = "lm", se = FALSE, color = "navyblue", 
+              size = 0.5, linetype = 2) + 
+  stat_poly_eq(formula = "y ~ x", aes(label = paste(..eq.label..,..rr.label.., sep = "~~~")), parse = TRUE, size = 3, color = "navyblue") +
+  theme_bw() + theme(legend.position = "none")
 ```
 
-The average activity count is computed across 24 hours of each day for each week. We do see drastic decrease during week 3 and week 12, but the individual was able to get back on track and eventually improve his activity count by week 47. 
+The average activity count is computed across 24 hours of each day for each week. We do see drastic decrease in week 3 and week 12, but the individual was able to get back on track and eventually improve his overall activity count by week 47. With the best fit line, we see a positive slope of 28000 in activity counts. 
 
 ### Activity on selected weeks
 Let's take a look at week 1, 15, 30, and 47...
@@ -99,9 +102,12 @@ week_plot2 = ggplot(week_analysis %>% select(-day) %>%
 ```
 
 ```{r message=FALSE}
-grid.arrange(week_plot2, week_plot1, top = "Further Analysis on Activity Distribution", left = "Activity Count (per Minute)")
+grid.arrange(week_plot2, week_plot1, top = "Activity Profile on Selected Weeks", left = "Activity Count (per Minute)")
 ```
 
-We are not able to extract that much information from the simple average activity count plot, so let's take a look at 4 particular weeks. Activity distribution over time shows a greater improvement for week 47 during the hours of 8 and 18. Other hours through the day seem much more variable. While there is visiable improvement for week 47, the other 3 weeks does not seem to show much difference in distribution.   
+We are unable to extract much information from the simple average activity per week plot, so let's take a look at 4 particular weeks in detail. Activity distribution over time shows a greater improvement in week 47 during the hours of 8 and 18. Other hours through the day seem much more variable. While there is visiable improvement in week 47, the other 3 weeks does not seem to show much difference in distribution.   
    
-Activity distribution over days of the week show more activity in week 47 for Tuesday and Sundays. Week 15 and 30 also appear as the largest activity count compared to other weeks for a given day. Week 1 remains under the maximum average activity count for all days of the week. 
+Activity distribution over days of the week show more activity in week 47 for Tuesday and Sundays. Week 15 and 30 also appear as the largest activity count when compared to other weeks for a given day. Week 1 remains under the maximum average activity count for all days of the week.  
+   
+### Results
+After 47 weeks, the individual improved his activity level by approximately 28000 counts. It is difficult to access whether activity level improved for all days of the week by the end of week 47. It may be helpful to study the cumulative distribution at different time points. 
